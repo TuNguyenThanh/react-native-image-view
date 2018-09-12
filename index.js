@@ -27,6 +27,7 @@ import {
     type TransitionType,
     type TranslateType,
 } from './types';
+import Immutable from 'seamless-immutable'
 
 const IMAGE_SPEED_FOR_CLOSE = 1.1;
 const SCALE_MAXIMUM = 5;
@@ -176,13 +177,12 @@ function calculateInitialTranslate(
 function fetchImageSize(images: Array<ImageType> = []) {
     return images.reduce((acc, image) => {
         if (
-            image.source &&
-            image.source.uri &&
+            image.url || image.path &&
             (!image.width || !image.height)
         ) {
             const imageSize = new Promise((resolve, reject) => {
                 Image.getSize(
-                    image.source.uri,
+                    image.uri || image.path,
                     (width, height) =>
                         resolve({
                             width,
@@ -546,11 +546,13 @@ export default class ImageView extends Component<PropsType, StateType> {
             nextScale = SCALE_MAXIMUM;
         }
 
+        console.log('vao')
         this.imageScaleValue.setValue(nextScale);
         this.currentTouchesNum = event.touches.length;
     }
 
     onGestureRelease(event: NativeEventType, gestureState: GestureState) {
+        this.setState({scrollEnabled: true})
         if (this.glideAlwaysTimer) {
             clearTimeout(this.glideAlwaysTimer);
         }
@@ -656,7 +658,7 @@ export default class ImageView extends Component<PropsType, StateType> {
     onImageLoaded(index: number) {
         const {images} = this.state;
 
-        images[index] = {...images[index], loaded: true};
+        images[index] = Immutable.merge({...images[index], loaded: true});
 
         this.setState({images});
     }
@@ -849,29 +851,27 @@ export default class ImageView extends Component<PropsType, StateType> {
         this.state.images.indexOf(image).toString();
 
     renderImage = ({item: image, index}: {item: *, index: number}): * => {
-        const loaded = image.loaded && image.width && image.height;
-
+        // const loaded = image.loaded && image.width && image.height;
         return (
             <View
                 style={styles.imageContainer}
                 onStartShouldSetResponder={(): boolean => true}
             >
                 <Animated.Image
-                    resizeMode="cover"
-                    source={image.source}
+                    resizeMode={'cover'}
+                    source={{ uri: image.url || image.path }}
                     style={this.getImageStyle(image, index)}
-                    onLoad={(): void => this.onImageLoaded(index)}
+                    // onLoad={(): void => this.onImageLoaded(index)}
                     {...this.panResponder.panHandlers}
                 />
-                {!loaded && <ActivityIndicator style={styles.loading} />}
+                {/*!loaded && <ActivityIndicator style={styles.loading} />*/}
             </View>
         );
     };
 
     render(): Node {
-        const {animationType, renderFooter, backgroundColor} = this.props;
+        const {animationType, renderFooter, backgroundColor, isShowCloseButton, onRequestClose, renderIconclosed} = this.props;
         const {images, imageIndex, isVisible, scrollEnabled} = this.state;
-
         const headerTranslate = this.headerTranslateValue.getTranslateTransform();
         const footerTranslate = this.footerTranslateValue.getTranslateTransform();
         const rgbBackgroundColor =
@@ -891,7 +891,7 @@ export default class ImageView extends Component<PropsType, StateType> {
                 transparent
                 visible={isVisible}
                 animationType={animationType}
-                onRequestClose={() => {}}
+                onRequestClose={onRequestClose}
             >
                 <Animated.View
                     style={[
@@ -899,19 +899,11 @@ export default class ImageView extends Component<PropsType, StateType> {
                         styles.underlay,
                     ]}
                 />
-                <Animated.View
-                    style={[styles.header, {transform: headerTranslate}]}
-                >
-                    <TouchableOpacity
-                        hitSlop={HIT_SLOP}
-                        style={styles.closeButton}
-                        onPress={() => {
-                            this.close();
-                        }}
-                    >
-                        <Text style={styles.closeButton__text}>×</Text>
-                    </TouchableOpacity>
-                </Animated.View>
+                {
+                  renderIconclosed &&
+                  renderIconclosed
+
+                }
                 <FlatList
                     horizontal
                     pagingEnabled
